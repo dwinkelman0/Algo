@@ -1,0 +1,10 @@
+*
+!*/
+!**/*.cc
+!**/*.h
+!**/CMakeLists.txt
+!.gitignore
+!LICENSE
+!README.md
+
+build

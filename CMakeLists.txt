@@ -6,7 +6,7 @@ set (CMAKE_BUILD_TYPE Release)
 set (CMAKE_CXX_STANDARD 20)
 
 project (Algo CXX)
-# set (Target_lib algo)
+set (Target_lib algo)
  set (Target_tests algo-tests)
 
 include (FetchContent)
@@ -17,8 +17,8 @@ enable_testing ()
 include_directories (src)
 include_directories (${googletest_SOURCE_DIR}/googletest/include)
 
-# file (GLOB LIB_SOURCES src/*.cc)
-# add_library (${Target_lib} ${LIB_SOURCES})
+file (GLOB LIB_SOURCES src/*.cc)
+add_library (${Target_lib} ${LIB_SOURCES})
 
 file (GLOB TESTS_SOURCES tests/*.cc)
 add_executable (${Target_tests} ${TESTS_SOURCES})

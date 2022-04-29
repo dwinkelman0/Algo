@@ -2,7 +2,7 @@
 
 #include "DirectedGraph.h"
 
-#include <queue>
+#include <vector>
 
 namespace algo {
 void DirectedGraph::connect(const uint32_t a, const uint32_t b) {
@@ -17,17 +17,11 @@ void DirectedGraph::connect(const uint32_t a, const uint32_t b) {
 void DirectedGraph::unconnect(const uint32_t a, const uint32_t b) {
   auto outgoingNodesIt = outgoingEdges_.find(a);
   if (outgoingNodesIt != outgoingEdges_.end()) {
-    outgoingNodesIt->second.erase(b);
-    if (outgoingNodesIt->second.empty()) {
-      outgoingEdges_.erase(outgoingNodesIt);
-    }
+    outgoingNodesIt->second.erase(outgoingNodesIt->second.find(b));
   }
-  auto incomingNodesIt = incomingEdges_.find(a);
+  auto incomingNodesIt = incomingEdges_.find(b);
   if (incomingNodesIt != incomingEdges_.end()) {
-    incomingNodesIt->second.erase(b);
-    if (incomingNodesIt->second.empty()) {
-      incomingEdges_.erase(incomingNodesIt);
-    }
+    incomingNodesIt->second.erase(a);
   }
 }
 
@@ -37,12 +31,14 @@ void DirectedGraph::eraseNode(const uint32_t a) {
     for (const uint32_t b : outgoingNodesIt->second) {
       unconnect(a, b);
     }
+    outgoingEdges_.erase(outgoingNodesIt);
   }
   auto incomingNodesIt = incomingEdges_.find(a);
   if (incomingNodesIt != incomingEdges_.end()) {
     for (const uint32_t b : incomingNodesIt->second) {
       unconnect(b, a);
     }
+    incomingEdges_.erase(incomingNodesIt);
   }
 }
 
@@ -55,6 +51,16 @@ std::set<uint32_t> DirectedGraph::getNodes() const {
     indices.insert(index);
   }
   return indices;
+}
+
+std::vector<std::pair<uint32_t, uint32_t>> DirectedGraph::getEdges() const {
+  std::vector<std::pair<uint32_t, uint32_t>> output;
+  for (const auto &[index, nodes] : outgoingEdges_) {
+    for (const uint32_t node : nodes) {
+      output.emplace_back(index, node);
+    }
+  }
+  return output;
 }
 
 DirectedGraph DirectedGraph::pruneSourcesAndSinks() const {

@@ -13,10 +13,7 @@ class DirectedGraph {
   void eraseNode(const uint32_t a);
 
   std::set<uint32_t> getNodes() const;
-
-  void breadthFirstTraverse(
-      const std::function<void(const DirectedGraph &, const uint32_t)> &func,
-      const std::vector<uint32_t> &origins) const;
+  std::vector<std::pair<uint32_t, uint32_t>> getEdges() const;
 
   DirectedGraph pruneSourcesAndSinks() const;
 

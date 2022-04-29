@@ -10,6 +10,7 @@ class DirectedGraph {
  public:
   void connect(const uint32_t a, const uint32_t b);
   void unconnect(const uint32_t a, const uint32_t b);
+  void addNode(const uint32_t a);
   void eraseNode(const uint32_t a);
 
   std::set<uint32_t> getNodes() const;

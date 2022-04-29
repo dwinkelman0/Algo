@@ -25,17 +25,24 @@ void DirectedGraph::unconnect(const uint32_t a, const uint32_t b) {
   }
 }
 
+void DirectedGraph::addNode(const uint32_t a) {
+  outgoingEdges_.emplace(a, std::set<uint32_t>());
+  incomingEdges_.emplace(a, std::set<uint32_t>());
+}
+
 void DirectedGraph::eraseNode(const uint32_t a) {
   auto outgoingNodesIt = outgoingEdges_.find(a);
   if (outgoingNodesIt != outgoingEdges_.end()) {
-    for (const uint32_t b : outgoingNodesIt->second) {
+    std::set<uint32_t> outgoingNodes(outgoingNodesIt->second);
+    for (const uint32_t b : outgoingNodes) {
       unconnect(a, b);
     }
     outgoingEdges_.erase(outgoingNodesIt);
   }
   auto incomingNodesIt = incomingEdges_.find(a);
   if (incomingNodesIt != incomingEdges_.end()) {
-    for (const uint32_t b : incomingNodesIt->second) {
+    std::set<uint32_t> incomingNodes(incomingNodesIt->second);
+    for (const uint32_t b : incomingNodes) {
       unconnect(b, a);
     }
     incomingEdges_.erase(incomingNodesIt);
@@ -67,21 +74,21 @@ DirectedGraph DirectedGraph::pruneSourcesAndSinks() const {
   DirectedGraph output(*this);
   bool progress = true;
   while (progress) {
-    progress = false;
+    std::set<uint32_t> eraseSet;
     for (const auto &[index, nodes] : output.outgoingEdges_) {
       if (output.isSource(index)) {
-        output.eraseNode(index);
-        progress = true;
-        break;
+        eraseSet.insert(index);
       }
     }
     for (const auto &[index, nodes] : output.incomingEdges_) {
       if (output.isSink(index)) {
-        output.eraseNode(index);
-        progress = true;
-        break;
+        eraseSet.insert(index);
       }
     }
+    for (const uint32_t node : eraseSet) {
+      output.eraseNode(node);
+    }
+    progress = !eraseSet.empty();
   }
   assert(output.outgoingEdges_.size() == output.incomingEdges_.size());
   return output;

@@ -1,6 +1,6 @@
 // Copyright 2022 by Daniel Winkelman. All rights reserved.
 
-#include <DirectedGraph.h>
+#include <algo/DirectedGraph.h>
 #include <gtest/gtest.h>
 
 namespace algo {

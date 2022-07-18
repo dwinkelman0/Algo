@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include <functional>
 #include <iostream>
 #include <map>
 #include <memory>
@@ -16,15 +17,22 @@ class Graph {
  protected:
   template <typename I, typename R>
   class Iterator {
+   protected:
+    using SkipFunction = std::function<bool(const I&)>;
+
    public:
     Iterator(const I& it) : it_(it), ref_(it) {}
+    Iterator(const I& it, const SkipFunction& skipFunction)
+        : it_(it), ref_(it), skipFunction_(skipFunction) {}
     const R& operator*() const { return ref_; }
     R& operator*() { return ref_; }
     const R* operator->() const { return &ref_; }
     R* operator->() { return &ref_; }
     Iterator& operator++() {
-      ++it_;
-      ref_ = R(it_);
+      do {
+        ++it_;
+        ref_ = R(it_);
+      } while (skipFunction_ && (*skipFunction_)(it_));
       return *this;
     }
     bool operator==(const Iterator& other) const { return it_ == other.it_; }
@@ -32,6 +40,7 @@ class Graph {
    private:
     I it_;
     R ref_;
+    std::optional<SkipFunction> skipFunction_;
   };
 
   template <typename I>
@@ -91,9 +100,6 @@ class Graph {
     inline uint32_t getDest() const { return it_->first.second; }
     inline const D& getWeight() const { return it_->second->first; }
     inline const E& getValue() const { return it_->second->second; }
-    inline const std::shared_ptr<std::pair<D, E>> getData() const {
-      return it_->second;
-    }
 
    private:
     EdgeMapConstIterator it_;
@@ -141,55 +147,128 @@ class Graph {
   using EdgeConstIterator = Iterator<EdgeMapConstIterator, ConstEdge>;
 
  public:
-  Graph() : outboundEdges_(EdgeMapComparator(true)) {}
+  Graph()
+      : outboundEdges_(typename Graph<D, E, V>::EdgeMapComparator(true)),
+        inboundEdges_(typename Graph<D, E, V>::EdgeMapComparator(false)) {}
 
   inline std::pair<VertexIterator, bool> emplaceVertex(const uint32_t a) {
     return vertices_.emplace(a, V());
   }
+
   virtual std::pair<EdgeIterator, bool> emplaceEdge(const uint32_t a,
-                                                    const uint32_t b) {
-    return outboundEdges_.emplace(std::pair<uint32_t, uint32_t>(a, b),
-                                  std::make_shared<std::pair<D, E>>(D(), E()));
-  }
+                                                    const uint32_t b) = 0;
 
   Range<VertexIterator> getVertices() {
     return Range<VertexIterator>(vertices_.begin(), vertices_.end());
   }
+
   Range<VertexConstIterator> getVertices() const {
     return Range<VertexConstIterator>(vertices_.begin(), vertices_.end());
   }
-  Range<EdgeIterator> getEdges() {
-    return Range<EdgeIterator>(outboundEdges_.begin(), outboundEdges_.end());
-  }
-  Range<EdgeConstIterator> getEdges() const {
-    return Range<EdgeConstIterator>(outboundEdges_.begin(),
-                                    outboundEdges_.end());
+
+  virtual Range<EdgeIterator> getEdges() = 0;
+  virtual Range<EdgeConstIterator> getEdges() const = 0;
+
+  Range<EdgeIterator> getEdgesFromVertex(const uint32_t a) {
+    return Range<EdgeIterator>(
+        outboundEdges_.lower_bound(std::pair<uint32_t, uint32_t>(a, 0)),
+        outboundEdges_.upper_bound(std::pair<uint32_t, uint32_t>(a + 1, 0)));
   }
 
- private:
+  Range<EdgeConstIterator> getEdgesFromVertex(const uint32_t a) const;
+  Range<EdgeIterator> getEdgesToVertex(const uint32_t a);
+  Range<EdgeConstIterator> getEdgesToVertex(const uint32_t a) const;
+
+ protected:
   VertexMap vertices_;
-  EdgeMap outboundEdges_;
+  EdgeMap outboundEdges_, inboundEdges_;
+};
+
+template <typename D, typename E, typename V>
+class UndirectedGraph : public Graph<D, E, V> {
+ public:
+  template <typename I>
+  using Range = typename Graph<D, E, V>::template Range<I>;
+  using EdgeIterator = typename Graph<D, E, V>::EdgeIterator;
+  using EdgeConstIterator = typename Graph<D, E, V>::EdgeConstIterator;
+
+ public:
+  UndirectedGraph() : Graph<D, E, V>() {}
+
+  std::pair<EdgeIterator, bool> emplaceEdge(const uint32_t a,
+                                            const uint32_t b) override {
+    auto it = this->outboundEdges_.find(std::pair<uint32_t, uint32_t>(a, b));
+    if (it != this->outboundEdges_.end()) {
+      return std::pair<EdgeIterator, bool>(it, false);
+    } else {
+      std::pair<uint32_t, uint32_t> forward(a, b);
+      std::pair<uint32_t, uint32_t> reverse(b, a);
+      auto mem = std::make_shared<std::pair<D, E>>(D(), E());
+      it = this->outboundEdges_.emplace(forward, mem).first;
+      this->outboundEdges_.emplace(reverse, mem);
+      this->inboundEdges_.emplace(forward, mem);
+      this->inboundEdges_.emplace(reverse, mem);
+      return std::pair<EdgeIterator, bool>(it, true);
+    }
+  }
+
+  Range<EdgeIterator> getEdges() override {
+    std::function skipper =
+        [this](const typename Graph<D, E, V>::EdgeIterator& it) {
+          return it != this->outboundEdges_.end() &&
+                 it->getSource() > it->getDest();
+        };
+    return Range<EdgeIterator>(
+        EdgeIterator(this->outboundEdges_.begin(), skipper),
+        EdgeIterator(this->outboundEdges_.end()));
+  }
+
+  Range<EdgeConstIterator> getEdges() const override {
+    std::function skipper =
+        [this](const typename Graph<D, E, V>::EdgeConstIterator& it) {
+          return it != this->outboundEdges_.end() &&
+                 it->getSource() > it->getDest();
+        };
+    return Range<EdgeConstIterator>(
+        EdgeConstIterator(this->outboundEdges_.begin(), skipper),
+        EdgeConstIterator(this->outboundEdges_.end()));
+  }
 };
 
 template <typename D, typename E, typename V>
 class DirectedGraph : public Graph<D, E, V> {
  public:
-  using EdgeMapComparator = typename Graph<D, E, V>::EdgeMapComparator;
+  template <typename I>
+  using Range = typename Graph<D, E, V>::template Range<I>;
   using EdgeIterator = typename Graph<D, E, V>::EdgeIterator;
+  using EdgeConstIterator = typename Graph<D, E, V>::EdgeConstIterator;
 
  public:
-  DirectedGraph() : Graph<D, E, V>(), inboundEdges_(EdgeMapComparator(false)) {}
+  DirectedGraph() : Graph<D, E, V>() {}
 
   std::pair<EdgeIterator, bool> emplaceEdge(const uint32_t a,
                                             const uint32_t b) override {
-    auto [it, success] = Graph<D, E, V>::emplaceEdge(a, b);
-    if (success) {
-      inboundEdges_.emplace(std::pair<uint32_t, uint32_t>(a, b), it->getData());
+    auto it = this->outboundEdges_.find(std::pair<uint32_t, uint32_t>(a, b));
+    if (it != this->outboundEdges_.end()) {
+      return std::pair<EdgeIterator, bool>(it, false);
+    } else {
+      std::pair<uint32_t, uint32_t> forward(a, b);
+      auto mem = std::make_shared<std::pair<D, E>>(D(), E());
+      it = this->outboundEdges_.emplace(forward, mem).first;
+      this->inboundEdges_.emplace(forward, mem);
+      return std::pair<EdgeIterator, bool>(it, true);
     }
-    return std::pair<EdgeIterator, bool>(it, success);
   }
 
- private:
-  typename Graph<D, E, V>::EdgeMap inboundEdges_;
+  Range<EdgeIterator> getEdges() override {
+    return Range<EdgeIterator>(EdgeIterator(this->outboundEdges_.begin()),
+                               EdgeIterator(this->outboundEdges_.end()));
+  }
+
+  Range<EdgeConstIterator> getEdges() const override {
+    return Range<EdgeConstIterator>(
+        EdgeConstIterator(this->outboundEdges_.begin()),
+        EdgeConstIterator(this->outboundEdges_.end()));
+  }
 };
 }  // namespace algo

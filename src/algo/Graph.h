@@ -178,18 +178,21 @@ class Graph {
     return vertices_.emplace(a, V());
   }
 
-  std::pair<EdgeIterator, bool> emplaceEdge(const uint32_t a,
-                                            const uint32_t b) {
-    auto it = this->outboundEdges_.find(std::pair<uint32_t, uint32_t>(a, b));
+  std::pair<EdgeIterator, bool> emplaceEdge(const VertexVariant& a,
+                                            const VertexVariant& b) {
+    uint32_t aIndex = std::visit(VertexVariantVisitor(), a);
+    uint32_t bIndex = std::visit(VertexVariantVisitor(), b);
+    auto it = this->outboundEdges_.find(
+        std::pair<uint32_t, uint32_t>(aIndex, bIndex));
     if (it != this->outboundEdges_.end()) {
       return std::pair<EdgeIterator, bool>(it, false);
     } else {
-      std::pair<uint32_t, uint32_t> forward(a, b);
+      std::pair<uint32_t, uint32_t> forward(aIndex, bIndex);
       auto mem = std::make_shared<std::pair<D, E>>(D(), E());
       it = this->outboundEdges_.emplace(forward, mem).first;
       this->inboundEdges_.emplace(forward, mem);
       if (!IsDirected) {
-        std::pair<uint32_t, uint32_t> reverse(b, a);
+        std::pair<uint32_t, uint32_t> reverse(bIndex, aIndex);
         this->inboundEdges_.emplace(reverse, mem);
         this->outboundEdges_.emplace(reverse, mem);
       }
@@ -238,6 +241,24 @@ class Graph {
         IsDirected ? EdgeConstIterator(this->outboundEdges_.begin())
                    : EdgeConstIterator(this->outboundEdges_.begin(), skipper),
         EdgeConstIterator(this->outboundEdges_.end()));
+  }
+
+  std::optional<EdgeIterator> getEdge(const VertexVariant& a,
+                                      const VertexVariant& b) {
+    auto it = outboundEdges_.find(
+        std::pair<uint32_t, uint32_t>(std::visit(VertexVariantVisitor(), a),
+                                      std::visit(VertexVariantVisitor(), b)));
+    return it == outboundEdges_.end() ? std::nullopt
+                                      : std::optional<EdgeIterator>(it);
+  }
+
+  std::optional<EdgeConstIterator> getEdge(const VertexVariant& a,
+                                           const VertexVariant& b) const {
+    auto it = outboundEdges_.find(
+        std::pair<uint32_t, uint32_t>(std::visit(VertexVariantVisitor(), a),
+                                      std::visit(VertexVariantVisitor(), b)));
+    return it == outboundEdges_.end() ? std::nullopt
+                                      : std::optional<EdgeConstIterator>(it);
   }
 
   Range<EdgeIterator> getEdgesFromVertex(const VertexVariant& vertex) {

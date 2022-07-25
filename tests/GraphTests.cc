@@ -13,14 +13,16 @@ TEST(Graph, Basic) {
   GraphType::VertexIterator v0 = graph.emplaceVertex(0).first;
   GraphType::VertexIterator v1 = graph.emplaceVertex(1).first;
   GraphType::VertexIterator v2 = graph.emplaceVertex(2).first;
-  GraphType::EdgeIterator e0 = graph.emplaceEdge(0, 1).first;
-  GraphType::EdgeIterator e1 = graph.emplaceEdge(1, 2).first;
-  GraphType::EdgeIterator e2 = graph.emplaceEdge(1, 0).first;
+  GraphType::EdgeIterator e0 = graph.emplaceEdge(v0, v1).first;
+  GraphType::EdgeIterator e1 = graph.emplaceEdge(v1, v2).first;
+  GraphType::EdgeIterator e2 = graph.emplaceEdge(v1, v0).first;
   v0->getValue() = {4, 5, 6};
   v1->getValue() = {1, 2, 3, 7};
   e0->getWeight() = 0.5;
   e0->getValue() = "hello";
   e1->getValue() = "world";
+  ASSERT_TRUE(graph.getEdge(0u, 1u));
+  ASSERT_FALSE(graph.getEdge(2u, 2u));
 }
 
 TEST(Graph, Vertices) {
@@ -51,16 +53,16 @@ TEST(Graph, DirectedDFS) {
   graph.emplaceVertex(2);
   graph.emplaceVertex(3);
   graph.emplaceVertex(4);
-  graph.emplaceEdge(0, 1);
-  graph.emplaceEdge(1, 2);
-  graph.emplaceEdge(2, 0);
-  graph.emplaceEdge(0, 2);
-  graph.emplaceEdge(2, 2);
-  graph.emplaceEdge(0, 3);
-  graph.emplaceEdge(0, 4);
-  graph.emplaceEdge(4, 0);
-  graph.emplaceEdge(3, 2);
-  graph.emplaceEdge(4, 4);
+  graph.emplaceEdge(0u, 1u);
+  graph.emplaceEdge(1u, 2u);
+  graph.emplaceEdge(2u, 0u);
+  graph.emplaceEdge(0u, 2u);
+  graph.emplaceEdge(2u, 2u);
+  graph.emplaceEdge(0u, 3u);
+  graph.emplaceEdge(0u, 4u);
+  graph.emplaceEdge(4u, 0u);
+  graph.emplaceEdge(3u, 2u);
+  graph.emplaceEdge(4u, 4u);
   uint32_t vertexCount = 0;
   uint32_t edgeCount = 0;
   graph.traverseDepthFirst(
@@ -78,14 +80,14 @@ TEST(Graph, UndirectedDFS) {
   graph.emplaceVertex(2);
   graph.emplaceVertex(3);
   graph.emplaceVertex(4);
-  graph.emplaceEdge(0, 1);
-  graph.emplaceEdge(1, 2);
-  graph.emplaceEdge(2, 0);
-  graph.emplaceEdge(2, 2);
-  graph.emplaceEdge(0, 3);
-  graph.emplaceEdge(0, 4);
-  graph.emplaceEdge(3, 2);
-  graph.emplaceEdge(4, 4);
+  graph.emplaceEdge(0u, 1u);
+  graph.emplaceEdge(1u, 2u);
+  graph.emplaceEdge(2u, 0u);
+  graph.emplaceEdge(2u, 2u);
+  graph.emplaceEdge(0u, 3u);
+  graph.emplaceEdge(0u, 4u);
+  graph.emplaceEdge(3u, 2u);
+  graph.emplaceEdge(4u, 4u);
   uint32_t vertexCount = 0;
   uint32_t edgeCount = 0;
   graph.traverseDepthFirst(
@@ -103,12 +105,12 @@ TEST(Graph, DirectedConnectedComponents) {
   graph.emplaceVertex(2);
   graph.emplaceVertex(3);
   graph.emplaceVertex(4);
-  graph.emplaceEdge(0, 0);
-  graph.emplaceEdge(0, 1);
-  graph.emplaceEdge(1, 2);
-  graph.emplaceEdge(3, 4);
-  graph.emplaceEdge(4, 3);
-  graph.emplaceEdge(4, 4);
+  graph.emplaceEdge(0u, 0u);
+  graph.emplaceEdge(0u, 1u);
+  graph.emplaceEdge(1u, 2u);
+  graph.emplaceEdge(3u, 4u);
+  graph.emplaceEdge(4u, 3u);
+  graph.emplaceEdge(4u, 4u);
   std::vector<GraphType> components = graph.getConnectedComponents();
   ASSERT_EQ(components.size(), 2);
   ASSERT_EQ(components[0].getVertices().getCount(), 3);

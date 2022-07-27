@@ -57,6 +57,14 @@ class Graph {
       }
       return count;
     }
+    template <typename T>
+    std::vector<T> map(const std::function<T(const I&)>& func) const {
+      std::vector<T> output;
+      for (auto it = begin(); it != end(); ++it) {
+        output.push_back(func(it));
+      }
+      return output;
+    }
 
    private:
     I begin_, end_;
@@ -93,6 +101,7 @@ class Graph {
   using VertexIterator = Iterator<VertexMapIterator, Vertex>;
   using VertexConstIterator = Iterator<VertexMapConstIterator, ConstVertex>;
 
+ protected:
   using VertexVariant =
       std::variant<uint32_t, Vertex, VertexIterator, VertexConstIterator>;
   class VertexVariantVisitor {
@@ -169,6 +178,28 @@ class Graph {
   using EdgeIterator = Iterator<EdgeMapIterator, Edge>;
   using EdgeConstIterator = Iterator<EdgeMapConstIterator, ConstEdge>;
 
+ protected:
+  using EdgeVariant = std::variant<std::pair<uint32_t, uint32_t>, Edge,
+                                   EdgeIterator, EdgeConstIterator>;
+  class EdgeVariantVisitor {
+   public:
+    std::pair<uint32_t, uint32_t> operator()(
+        const std::pair<uint32_t, uint32_t> indices) {
+      return indices;
+    }
+    std::pair<uint32_t, uint32_t> operator()(const Edge& edge) {
+      return std::pair<uint32_t, uint32_t>(edge.getSource(), edge.getDest());
+    }
+    std::pair<uint32_t, uint32_t> operator()(const EdgeIterator& edgeIt) {
+      return std::pair<uint32_t, uint32_t>(edgeIt->getSource(),
+                                           edgeIt->getDest());
+    }
+    std::pair<uint32_t, uint32_t> operator()(const EdgeConstIterator& edgeIt) {
+      return std::pair<uint32_t, uint32_t>(edgeIt->getSource(),
+                                           edgeIt->getDest());
+    }
+  };
+
  public:
   Graph()
       : outboundEdges_(EdgeMapComparator(true)),
@@ -176,6 +207,22 @@ class Graph {
 
   inline std::pair<VertexIterator, bool> emplaceVertex(const uint32_t a) {
     return vertices_.emplace(a, V());
+  }
+
+  void eraseVertex(const VertexVariant& vertex) {
+    auto eraseEdgeRange = [this](const Range<EdgeIterator>& range) {
+      for (const std::pair<uint32_t, uint32_t>& edge :
+           range.template map<std::pair<uint32_t, uint32_t>>(
+               [](const EdgeIterator& it) {
+                 return std::pair<uint32_t, uint32_t>(it->getSource(),
+                                                      it->getDest());
+               })) {
+        eraseEdge(edge);
+      }
+    };
+    eraseEdgeRange(getEdgesFromVertex(vertex));
+    eraseEdgeRange(getEdgesToVertex(vertex));
+    vertices_.erase(std::visit(VertexVariantVisitor(), vertex));
   }
 
   std::pair<EdgeIterator, bool> emplaceEdge(const VertexVariant& a,
@@ -197,6 +244,18 @@ class Graph {
         this->outboundEdges_.emplace(reverse, mem);
       }
       return std::pair<EdgeIterator, bool>(it, true);
+    }
+  }
+
+  void eraseEdge(const EdgeVariant& edge) {
+    std::pair<uint32_t, uint32_t> forward =
+        std::visit(EdgeVariantVisitor(), edge);
+    outboundEdges_.erase(forward);
+    inboundEdges_.erase(forward);
+    if (!IsDirected) {
+      std::pair<uint32_t, uint32_t> reverse(forward.second, forward.first);
+      outboundEdges_.erase(reverse);
+      inboundEdges_.erase(reverse);
     }
   }
 

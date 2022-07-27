@@ -45,6 +45,53 @@ TEST(Graph, Vertices) {
   ASSERT_EQ((*v3)->getValue(), 5);
 }
 
+TEST(Graph, DirectedErase) {
+  using GraphType = DirectedGraph<Unit, Unit, Unit>;
+  GraphType graph;
+  graph.emplaceVertex(0);
+  graph.emplaceVertex(1);
+  graph.emplaceVertex(2);
+  GraphType::EdgeIterator e0 = graph.emplaceEdge(0u, 0u).first;
+  GraphType::EdgeIterator e1 = graph.emplaceEdge(0u, 1u).first;
+  GraphType::EdgeIterator e2 = graph.emplaceEdge(0u, 2u).first;
+  GraphType::EdgeIterator e3 = graph.emplaceEdge(1u, 1u).first;
+  GraphType::EdgeIterator e4 = graph.emplaceEdge(1u, 2u).first;
+  GraphType::EdgeIterator e5 = graph.emplaceEdge(2u, 0u).first;
+  ASSERT_EQ(graph.getVertices().getCount(), 3);
+  ASSERT_EQ(graph.getEdges().getCount(), 6);
+  ASSERT_EQ(graph.getEdgesFromVertex(0u).getCount(), 3);
+  ASSERT_EQ(graph.getEdgesToVertex(1u).getCount(), 2);
+  graph.eraseEdge(e1);
+  ASSERT_EQ(graph.getEdgesFromVertex(0u).getCount(), 2);
+  ASSERT_EQ(graph.getEdgesToVertex(1u).getCount(), 1);
+  graph.eraseVertex(0u);
+  ASSERT_EQ(graph.getVertices().getCount(), 2);
+  ASSERT_EQ(graph.getEdges().getCount(), 2);
+}
+
+TEST(Graph, UndirectedErase) {
+  using GraphType = UndirectedGraph<Unit, Unit, Unit>;
+  GraphType graph;
+  graph.emplaceVertex(0);
+  graph.emplaceVertex(1);
+  graph.emplaceVertex(2);
+  GraphType::EdgeIterator e0 = graph.emplaceEdge(0u, 0u).first;
+  GraphType::EdgeIterator e1 = graph.emplaceEdge(0u, 1u).first;
+  GraphType::EdgeIterator e2 = graph.emplaceEdge(0u, 2u).first;
+  GraphType::EdgeIterator e3 = graph.emplaceEdge(1u, 1u).first;
+  GraphType::EdgeIterator e4 = graph.emplaceEdge(1u, 2u).first;
+  ASSERT_EQ(graph.getVertices().getCount(), 3);
+  ASSERT_EQ(graph.getEdges().getCount(), 5);
+  ASSERT_EQ(graph.getEdgesFromVertex(0u).getCount(), 3);
+  ASSERT_EQ(graph.getEdgesToVertex(1u).getCount(), 3);
+  graph.eraseEdge(e1);
+  ASSERT_EQ(graph.getEdgesFromVertex(0u).getCount(), 2);
+  ASSERT_EQ(graph.getEdgesToVertex(1u).getCount(), 2);
+  graph.eraseVertex(0u);
+  ASSERT_EQ(graph.getVertices().getCount(), 2);
+  ASSERT_EQ(graph.getEdges().getCount(), 2);
+}
+
 TEST(Graph, DirectedDFS) {
   using GraphType = DirectedGraph<Unit, Unit, Unit>;
   GraphType graph;

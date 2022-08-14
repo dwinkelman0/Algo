@@ -234,7 +234,8 @@ class Graph {
       EdgeMap newEdges(edges.key_comp());
       for (auto it = edges.begin(); it != edges.end();) {
         const auto& [index, value] = *it;
-        if (index.first == a || index.second == b) {
+        auto oldIt = it++;
+        if (index.first == a || index.second == a) {
           if (index.first == a && index.second == a) {
             newEdges.emplace(std::pair<uint32_t, uint32_t>(b, b), value);
           } else if (index.first == a) {
@@ -244,9 +245,8 @@ class Graph {
             newEdges.emplace(std::pair<uint32_t, uint32_t>(index.first, b),
                              value);
           }
+          edges.erase(oldIt);
         }
-        auto oldIt = it++;
-        edges.erase(oldIt);
       }
       edges.insert(newEdges.begin(), newEdges.end());
     };

@@ -179,5 +179,13 @@ TEST(Graph, DirectedRenameVertex) {
   graph.emplaceEdge(2u, 2u);
   ASSERT_FALSE(graph.renameVertex(0u, 2u));
   ASSERT_TRUE(graph.renameVertex(0u, 3u));
+  ASSERT_TRUE(graph.getEdge(3u, 3u));
+  ASSERT_TRUE(graph.getEdge(3u, 1u));
+  ASSERT_TRUE(graph.getEdge(2u, 3u));
+  ASSERT_FALSE(graph.getEdge(0u, 0u));
+  ASSERT_FALSE(graph.getEdge(0u, 1u));
+  ASSERT_FALSE(graph.getEdge(2u, 1u));
+  ASSERT_TRUE(graph.getEdge(1u, 2u));
+  ASSERT_TRUE(graph.getEdge(2u, 2u));
 }
 }  // namespace algo

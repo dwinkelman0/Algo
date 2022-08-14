@@ -16,10 +16,13 @@ class Unit {};
 template <typename D, typename E, typename V, bool IsDirected>
 class Graph {
  protected:
-  template <typename I, typename R>
+  template <typename I, typename R_>
   class Iterator {
    protected:
     using SkipFunction = std::function<bool(const I&)>;
+
+   public:
+    using R = R_;
 
    public:
     Iterator(const I& it) : it_(it), ref_(it) {}
@@ -44,6 +47,7 @@ class Graph {
     std::optional<SkipFunction> skipFunction_;
   };
 
+ public:
   template <typename I>
   class Range {
    public:
@@ -102,12 +106,13 @@ class Graph {
   using VertexConstIterator = Iterator<VertexMapConstIterator, ConstVertex>;
 
  protected:
-  using VertexVariant =
-      std::variant<uint32_t, Vertex, VertexIterator, VertexConstIterator>;
+  using VertexVariant = std::variant<uint32_t, Vertex, ConstVertex,
+                                     VertexIterator, VertexConstIterator>;
   class VertexVariantVisitor {
    public:
     uint32_t operator()(const uint32_t index) { return index; }
     uint32_t operator()(const Vertex& vertex) { return vertex.getIndex(); }
+    uint32_t operator()(const ConstVertex& vertex) { return vertex.getIndex(); }
     uint32_t operator()(const VertexIterator& vertexIt) {
       return vertexIt->getIndex();
     }
@@ -180,7 +185,7 @@ class Graph {
 
  protected:
   using EdgeVariant = std::variant<std::pair<uint32_t, uint32_t>, Edge,
-                                   EdgeIterator, EdgeConstIterator>;
+                                   ConstEdge, EdgeIterator, EdgeConstIterator>;
   class EdgeVariantVisitor {
    public:
     std::pair<uint32_t, uint32_t> operator()(
@@ -188,6 +193,9 @@ class Graph {
       return indices;
     }
     std::pair<uint32_t, uint32_t> operator()(const Edge& edge) {
+      return std::pair<uint32_t, uint32_t>(edge.getSource(), edge.getDest());
+    }
+    std::pair<uint32_t, uint32_t> operator()(const ConstEdge& edge) {
       return std::pair<uint32_t, uint32_t>(edge.getSource(), edge.getDest());
     }
     std::pair<uint32_t, uint32_t> operator()(const EdgeIterator& edgeIt) {
@@ -205,8 +213,46 @@ class Graph {
       : outboundEdges_(EdgeMapComparator(true)),
         inboundEdges_(EdgeMapComparator(false)) {}
 
+  inline std::pair<VertexIterator, bool> emplaceVertex(const uint32_t a,
+                                                       const V& value) {
+    return vertices_.emplace(a, value);
+  }
   inline std::pair<VertexIterator, bool> emplaceVertex(const uint32_t a) {
     return vertices_.emplace(a, V());
+  }
+
+  bool renameVertex(const uint32_t a, const uint32_t b) {
+    auto aIt = vertices_.find(a);
+    auto bIt = vertices_.find(b);
+    if (aIt == vertices_.end() || bIt != vertices_.end()) {
+      return false;
+    }
+    vertices_.emplace(b, aIt->second);
+    vertices_.erase(aIt);
+
+    auto renameEdges = [a, b](EdgeMap& edges) {
+      EdgeMap newEdges(edges.key_comp());
+      for (auto it = edges.begin(); it != edges.end();) {
+        const auto& [index, value] = *it;
+        if (index.first == a || index.second == b) {
+          if (index.first == a && index.second == a) {
+            newEdges.emplace(std::pair<uint32_t, uint32_t>(b, b), value);
+          } else if (index.first == a) {
+            newEdges.emplace(std::pair<uint32_t, uint32_t>(b, index.second),
+                             value);
+          } else {
+            newEdges.emplace(std::pair<uint32_t, uint32_t>(index.first, b),
+                             value);
+          }
+        }
+        auto oldIt = it++;
+        edges.erase(oldIt);
+      }
+      edges.insert(newEdges.begin(), newEdges.end());
+    };
+    renameEdges(outboundEdges_);
+    renameEdges(inboundEdges_);
+    return true;
   }
 
   void eraseVertex(const VertexVariant& vertex) {
@@ -226,7 +272,8 @@ class Graph {
   }
 
   std::pair<EdgeIterator, bool> emplaceEdge(const VertexVariant& a,
-                                            const VertexVariant& b) {
+                                            const VertexVariant& b,
+                                            const D& data, const E& value) {
     uint32_t aIndex = std::visit(VertexVariantVisitor(), a);
     uint32_t bIndex = std::visit(VertexVariantVisitor(), b);
     auto it = this->outboundEdges_.find(
@@ -235,7 +282,7 @@ class Graph {
       return std::pair<EdgeIterator, bool>(it, false);
     } else {
       std::pair<uint32_t, uint32_t> forward(aIndex, bIndex);
-      auto mem = std::make_shared<std::pair<D, E>>(D(), E());
+      auto mem = std::make_shared<std::pair<D, E>>(data, value);
       it = this->outboundEdges_.emplace(forward, mem).first;
       this->inboundEdges_.emplace(forward, mem);
       if (!IsDirected) {
@@ -245,6 +292,10 @@ class Graph {
       }
       return std::pair<EdgeIterator, bool>(it, true);
     }
+  }
+  std::pair<EdgeIterator, bool> emplaceEdge(const VertexVariant& a,
+                                            const VertexVariant& b) {
+    return emplaceEdge(a, b, D(), E());
   }
 
   void eraseEdge(const EdgeVariant& edge) {
@@ -318,6 +369,12 @@ class Graph {
                                       std::visit(VertexVariantVisitor(), b)));
     return it == outboundEdges_.end() ? std::nullopt
                                       : std::optional<EdgeConstIterator>(it);
+  }
+
+  template <typename I>
+  static typename I::R unwrap(const std::optional<I>& object) {
+    assert(object);
+    return **object;
   }
 
   Range<EdgeIterator> getEdgesFromVertex(const VertexVariant& vertex) {

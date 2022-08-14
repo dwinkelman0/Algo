@@ -165,4 +165,19 @@ TEST(Graph, DirectedConnectedComponents) {
   ASSERT_EQ(components[1].getVertices().getCount(), 2);
   ASSERT_EQ(components[1].getEdges().getCount(), 3);
 }
+
+TEST(Graph, DirectedRenameVertex) {
+  using GraphType = DirectedGraph<Unit, Unit, Unit>;
+  GraphType graph;
+  graph.emplaceVertex(0);
+  graph.emplaceVertex(1);
+  graph.emplaceVertex(2);
+  graph.emplaceEdge(0u, 0u);
+  graph.emplaceEdge(0u, 1u);
+  graph.emplaceEdge(2u, 0u);
+  graph.emplaceEdge(1u, 2u);
+  graph.emplaceEdge(2u, 2u);
+  ASSERT_FALSE(graph.renameVertex(0u, 2u));
+  ASSERT_TRUE(graph.renameVertex(0u, 3u));
+}
 }  // namespace algo
